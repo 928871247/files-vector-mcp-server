@@ -109,7 +109,7 @@ class VectorDB:
                     conn.commit()
                     
                     # 发送状态更新事件
-                    from utils.events import event_queue, get_event_loop
+                    from ..utils.events import event_queue, get_event_loop
                     event_data = {
                         "type": "status_updated",
                         "file_path": file_path,

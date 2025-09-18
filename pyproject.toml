@@ -1,6 +1,6 @@
 [project]
 name = "files-vector-mcp-server"
-version = "0.1.0"
+version = "0.1.5"
 authors = [{'name' = 'Your Name', 'email' = 'your.email@example.com'}]
 description = "A FastMCP server for file vectorization and similarity search"
 readme = "README.md"
@@ -15,7 +15,8 @@ dependencies = [
   "python-docx>=0.8.11",
   "PyPDF2>=3.0.1",
   "python-pptx>=0.6.23",
-  "requests>=2.31.0"
+  "requests>=2.31.0",
+  "watchdog>=6.0.0"
 ]
 
 [project.urls]
@@ -23,7 +24,7 @@ dependencies = [
 "Bug Tracker" = "https://github.com/928871247/files-vector-mcp-server/issues"
 
 [project.scripts]
-files-vector-mcp-server = "files-vector-mcp-server.main:main"
+files-vector-mcp-server = "files_vector_mcp_server.main:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
