@@ -6,9 +6,10 @@ from typing import Dict, List, Optional, Tuple, Any
 
 logger = logging.getLogger(__name__)
 
+
 class VectorDB:
     """向量数据库服务类，处理文件向量和分块向量的存储和查询"""
-    
+
     def __init__(self, connection_string: str, embedding_dim: int):
         """初始化数据库连接和表结构"""
         self.connection_string = connection_string
@@ -27,7 +28,7 @@ class VectorDB:
                 with conn.cursor() as cur:
                     # 启用pgvector扩展
                     cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-                    
+
                     # 创建文件表
                     cur.execute(f"""
                     CREATE TABLE IF NOT EXISTS files (
@@ -44,7 +45,7 @@ class VectorDB:
                         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
                     """)
-                    
+
                     # 创建块表
                     cur.execute(f"""
                     CREATE TABLE IF NOT EXISTS chunks (
@@ -59,30 +60,31 @@ class VectorDB:
                         UNIQUE(file_id, chunk_num)
                     );
                     """)
-                    
+
                     # 创建索引
                     cur.execute("CREATE INDEX IF NOT EXISTS idx_files_file_path ON files(file_path);")
                     cur.execute("CREATE INDEX IF NOT EXISTS idx_files_topic ON files(topic);")
                     cur.execute("CREATE INDEX IF NOT EXISTS idx_files_status ON files(status);")
                     cur.execute(f"CREATE INDEX IF NOT EXISTS idx_chunks_file_id ON chunks(file_id);")
-                    cur.execute(f"CREATE INDEX IF NOT EXISTS idx_chunks_vector ON chunks USING ivfflat (vector vector_cosine_ops) WITH (lists = 100);")
-                    
+                    cur.execute(
+                        f"CREATE INDEX IF NOT EXISTS idx_chunks_vector ON chunks USING ivfflat (vector vector_cosine_ops) WITH (lists = 100);")
+
                     conn.commit()
                     logger.info(f"数据库表结构初始化成功（向量维度: {self.embedding_dim}）")
-                    
+
         except Exception as e:
             logger.error(f"创建数据库表结构失败: {e}")
             raise
 
-    def upsert_file(self, 
-                   file_path: str, 
-                   topic: str, 
-                   file_hash: str, 
-                   last_modified: datetime, 
-                   status: str, 
-                   total_chunks: int = 0,
-                   processed_chunks: int = 0,
-                   error_message: Optional[str] = None) -> int:
+    def upsert_file(self,
+                    file_path: str,
+                    topic: str,
+                    file_hash: str,
+                    last_modified: datetime,
+                    status: str,
+                    total_chunks: int = 0,
+                    processed_chunks: int = 0,
+                    error_message: Optional[str] = None) -> int:
         """插入或更新文件信息（不含向量，向量存储在块表中）"""
         try:
             with self._get_connection() as conn:
@@ -102,12 +104,12 @@ class VectorDB:
                         error_message = EXCLUDED.error_message,
                         updated_at = CURRENT_TIMESTAMP
                     RETURNING id;
-                    """, (file_path, topic, file_hash, last_modified, status, 
+                    """, (file_path, topic, file_hash, last_modified, status,
                           total_chunks, processed_chunks, error_message))
-                    
+
                     file_id = cur.fetchone()[0]
                     conn.commit()
-                    
+
                     # 发送状态更新事件
                     from ..utils.events import event_queue, get_event_loop
                     event_data = {
@@ -121,24 +123,24 @@ class VectorDB:
                     }
                     if error_message:
                         event_data["error"] = error_message
-                        
+
                     asyncio.run_coroutine_threadsafe(
-                        event_queue.put(event_data), 
+                        event_queue.put(event_data),
                         get_event_loop()
                     )
-                    
+
                     return file_id
-                    
+
         except Exception as e:
             logger.error(f"更新文件 {file_path} 到数据库失败: {e}")
             raise
 
-    def upsert_chunk(self, 
-                    file_id: int, 
-                    chunk_num: int, 
-                    total_chunks: int, 
-                    content: str, 
-                    vector: List[float]) -> bool:
+    def upsert_chunk(self,
+                     file_id: int,
+                     chunk_num: int,
+                     total_chunks: int,
+                     content: str,
+                     vector: List[float]) -> bool:
         """插入或更新文件块向量"""
         try:
             with self._get_connection() as conn:
@@ -153,7 +155,7 @@ class VectorDB:
                         vector = EXCLUDED.vector,
                         updated_at = CURRENT_TIMESTAMP;
                     """, (file_id, chunk_num, total_chunks, content, vector))
-                    
+
                     # 更新文件的已处理块数
                     cur.execute("""
                     UPDATE files 
@@ -161,11 +163,11 @@ class VectorDB:
                         updated_at = CURRENT_TIMESTAMP
                     WHERE id = %s;
                     """, (file_id, file_id))
-                    
+
                     conn.commit()
                     logger.debug(f"文件块 {file_id}:{chunk_num}/{total_chunks} 已更新到数据库")
                     return True
-                    
+
         except Exception as e:
             logger.error(f"更新文件块 {file_id}:{chunk_num} 失败: {e}")
             raise
@@ -182,7 +184,7 @@ class VectorDB:
                         FROM files f
                         WHERE f.file_path = %s;
                         """, (file_path,))
-                        
+
                         result = cur.fetchone()
                         if result:
                             return {
@@ -204,15 +206,15 @@ class VectorDB:
                         FROM files
                         """
                         params = []
-                        
+
                         if topic:
                             query += " WHERE topic = %s"
                             params.append(topic)
-                            
+
                         query += " GROUP BY topic, status;"
                         cur.execute(query, params)
                         results = cur.fetchall()
-                        
+
                         stats = {}
                         for topic_name, status, count, last_updated, total_chunks, processed_chunks in results:
                             if topic_name not in stats:
@@ -223,22 +225,22 @@ class VectorDB:
                                 "processed_chunks": processed_chunks or 0,
                                 "last_updated": last_updated.isoformat() if last_updated else None
                             }
-                            
+
                         return stats
-                        
+
         except Exception as e:
             logger.error(f"获取文件状态失败: {e}")
             raise
 
-    def search_similar_chunks(self, query_vector: List[float], top_k: int = 5, 
-                             topic: Optional[str] = None, file_path: Optional[str] = None) -> List[Dict[str, Any]]:
+    def search_similar_chunks(self, query_vector: List[float], top_k: int = 5,
+                              topic: Optional[str] = None, file_path: Optional[str] = None) -> List[Dict[str, Any]]:
         """向量相似度搜索（块级）"""
         try:
             with self._get_connection() as conn:
                 with conn.cursor() as cur:
                     # 基础查询 - 连接文件和块表，添加向量类型转换
                     query = """
-                    SELECT c.file_id, f.file_path, f.topic, c.chunk_num, c.total_chunks, 
+                    SELECT c.id, c.file_id, f.file_path, f.topic, c.chunk_num, c.total_chunks, 
                            1 - (c.vector <=> %s::vector) as similarity, c.content, f.last_modified
                     FROM chunks c
                     JOIN files f ON c.file_id = f.id
@@ -246,48 +248,76 @@ class VectorDB:
                     """
                     # 初始化参数列表，先添加查询向量
                     params = [query_vector]
-                    
+
                     # 添加主题过滤
                     if topic:
                         query += " AND f.topic = %s"
                         params.append(topic)
-                        
+
                     # 添加文件路径过滤
                     if file_path:
                         query += " AND f.file_path = %s"
                         params.append(file_path)
-                    
+
                     # 添加排序和限制条件
                     query += " ORDER BY c.vector <=> %s::vector LIMIT %s;"
                     # 添加排序向量和top_k参数
                     params.append(query_vector)
                     params.append(top_k)
-                    
+
                     # 执行查询
                     cur.execute(query, params)
                     results = cur.fetchall()
-                    
+
                     # 处理结果 - 检查是否为空
                     if not results:
                         logger.info("搜索未找到匹配结果")
                         return []
-                    
+
                     # 构建结果 - 包含块内容预览
                     return [
                         {
-                            "file_id": res[0],
-                            "file_path": res[1],
-                            "topic": res[2],
-                            "chunk_num": res[3],
-                            "total_chunks": res[4],
-                            "similarity": float(res[5]),
-                            "content_preview": res[6][:200] + "..." if len(res[6]) > 200 else res[6],
-                            "last_modified": res[7].isoformat()
+                            "chunk_id": res[0],
+                            "file_id": res[1],
+                            "file_path": res[2],
+                            "topic": res[3],
+                            "chunk_num": res[4],
+                            "total_chunks": res[5],
+                            "similarity": float(res[6]),
+                            "content_preview": res[7][:200] + "..." if len(res[7]) > 200 else res[7],
+                            "last_modified": res[8].isoformat()
                         } for res in results
                     ]
-                    
+
         except Exception as e:
             logger.error(f"向量搜索失败: {e}")
+            raise
+
+    def get_chunk_by_id(self, chunk_id: int) -> Optional[Dict[str, Any]]:
+        """根据chunk_id获取完整块内容"""
+        try:
+            with self._get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                    SELECT c.id, c.chunk_num, c.total_chunks, c.content, f.file_path
+                    FROM chunks c
+                    JOIN files f ON c.file_id = f.id
+                    WHERE c.id = %s;
+                    """, (chunk_id,))
+
+                    result = cur.fetchone()
+                    if result:
+                        return {
+                            "chunk_id": result[0],
+                            "chunk_num": result[1],
+                            "total_chunks": result[2],
+                            "content": result[3],
+                            "file_path": result[4]
+                        }
+                    return None
+
+        except Exception as e:
+            logger.error(f"获取块内容失败: {e}")
             raise
 
     def search_fulltext(self, query_text: str, top_k: int = 5, topic: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -303,15 +333,15 @@ class VectorDB:
                     WHERE f.status = 'success' AND to_tsvector('english', f.file_path) @@ plainto_tsquery('english', %s)
                     """
                     params = [query_text, top_k]
-                    
+
                     if topic:
                         query += " AND f.topic = %s"
                         params.insert(1, topic)
-                        
+
                     query += " GROUP BY f.id LIMIT %s;"
                     cur.execute(query, params)
                     results = cur.fetchall()
-                    
+
                     return [
                         {
                             "file_path": res[0],
@@ -321,7 +351,7 @@ class VectorDB:
                             "total_chunks": res[4]
                         } for res in results
                     ]
-                    
+
         except Exception as e:
             logger.error(f"全文搜索失败: {e}")
             raise

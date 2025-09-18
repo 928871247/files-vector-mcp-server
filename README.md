@@ -70,7 +70,7 @@ uvx files-vector-mcp-server
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_API_URL=https://api.openai.com/v1
 EMBEDDING_MODEL=text-embedding-ada-002
-EMBEDDING_DIM=1536
+EMBEDDING_DIM=1024
 
 # 数据库配置
 DB_CONNECTION_STRING=postgres://user:password@localhost:5432/vector_db
@@ -141,16 +141,16 @@ create_markdown "/notes/new_note.md" "# 新笔记\n\n这是通过API创建的笔
 
 ## ⚙️ 配置参数详解
 
-| 参数名 | 描述  | 默认值 |
-| --- | --- | --- |
+| 参数名 | 描述  | 默认值                       |
+| --- | --- |---------------------------|
 | `WATCH_TOPICS` | 监控主题与目录映射（JSON） | `{"默认": ["./watch_dir"]}` |
-| `CHUNK_SIZE` | 分块大小（字符） | 4000 |
-| `CHUNK_OVERLAP` | 块重叠字符数 | 200 |
-| `EMBEDDING_MODEL` | 嵌入模型名称 | text-embedding-ada-002 |
-| `EMBEDDING_DIM` | 嵌入向量维度 | 1536 |
-| `BATCH_SIZE` | 批处理大小 | 5   |
-| `RETRY_ATTEMPTS` | API调用重试次数 | 3   |
-| `RETRY_DELAY` | 重试延迟（秒） | 5   |
+| `CHUNK_SIZE` | 分块大小（字符） | 4000                      |
+| `CHUNK_OVERLAP` | 块重叠字符数 | 200                       |
+| `EMBEDDING_MODEL` | 嵌入模型名称 | text-embedding-ada-002    |
+| `EMBEDDING_DIM` | 嵌入向量维度 | 1024                      |
+| `BATCH_SIZE` | 批处理大小 | 5                         |
+| `RETRY_ATTEMPTS` | API调用重试次数 | 3                         |
+| `RETRY_DELAY` | 重试延迟（秒） | 5                         |
 
 ## 📋 使用场景
 

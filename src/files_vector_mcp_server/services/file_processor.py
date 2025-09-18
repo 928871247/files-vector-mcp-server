@@ -411,7 +411,7 @@ class FileProcessor:
             )
 
             # 发送文件处理成功事件
-            from ..utils import event_queue, get_event_loop
+            from ..utils.events import event_queue, get_event_loop
             event_data = {
                 "type": "file_processed",
                 "file_path": file_path,
@@ -455,7 +455,7 @@ class FileProcessor:
                 logger.error(f"更新文件失败状态到数据库时出错: {db_error}")
 
             # 发送文件处理失败事件
-            from ..utils import event_queue, get_event_loop
+            from ..utils.events import event_queue, get_event_loop
             event_data = {
                 "type": "file_failed",
                 "file_path": file_path,

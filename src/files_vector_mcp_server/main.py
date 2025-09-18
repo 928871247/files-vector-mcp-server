@@ -33,11 +33,11 @@ def main():
         initialize_services()
 
         # 启动全局事件循环
-        from .utils import start_worker_event_loop
+        from .utils.events import start_worker_event_loop
         start_worker_event_loop()
 
         # 创建FastMCP实例（完全按照官方示例）
-        mcp = FastMCP(name="file-vector-server")
+        mcp = FastMCP(name="file-vector-mcp-server")
 
         # 注册工具（使用显式参数）
         register_tools(mcp)
@@ -66,7 +66,7 @@ def main():
                 logger.info(f"工作线程 {thread.name} 已停止")
 
         # 停止事件循环
-        from .utils import stop_worker_event_loop
+        from .utils.events import stop_worker_event_loop
         stop_worker_event_loop()
 
 
@@ -174,7 +174,7 @@ def register_tools(mcp: FastMCP):
             top_k: int = 5,
             topic: Optional[str] = None,
             file_path: Optional[str] = None,
-            return_content: bool = False  # 新增参数：是否返回完整内容
+            return_content: bool = True  # 新增参数：是否返回完整内容
     ) -> dict:
         """搜索文件内容（块级搜索），支持返回完整块内容"""
         global db_service, file_processor, config
@@ -211,7 +211,7 @@ def register_tools(mcp: FastMCP):
         """读取完整文件内容（带长度限制）"""
         try:
             # 验证文件路径是否在监控目录中
-            from .utils import get_all_watch_directories
+            from .utils.helpers import get_all_watch_directories
             watch_dirs = get_all_watch_directories(config.watch_topics)
             is_allowed = any(file_path.startswith(dir) for dir in watch_dirs)
 
@@ -254,7 +254,7 @@ def register_tools(mcp: FastMCP):
         global config
         try:
             # 验证文件路径是否在监控目录中
-            from .utils import get_all_watch_directories
+            from .utils.helpers import get_all_watch_directories
             watch_dirs = get_all_watch_directories(config.watch_topics)
             is_allowed = any(file_path.startswith(dir) for dir in watch_dirs)
 
@@ -295,13 +295,13 @@ def start_file_watcher():
     global config, observer, worker_threads
 
     # 创建全局事件队列
-    from .utils import event_queue
+    from .utils.events import event_queue
 
     from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
     from queue import Queue
 
-    from .utils import get_all_watch_directories, is_supported_file_type
+    from .utils.helpers import get_all_watch_directories, is_supported_file_type
 
     # 创建任务队列（全局可见，供create_markdown使用）
     global task_queue
@@ -433,7 +433,7 @@ def start_file_watcher():
                 }
 
                 # 使用全局事件循环发送事件
-                from .utils import get_event_loop
+                from .utils.events import get_event_loop
                 loop = get_event_loop()
                 if loop and loop.is_running():
                     asyncio.run_coroutine_threadsafe(

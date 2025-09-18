@@ -27,7 +27,7 @@ class Config:
     
     # 向量化参数配置
     embedding_model: str = field(default_factory=lambda: os.getenv("EMBEDDING_MODEL", "text-embedding-ada-002"))
-    embedding_dim: int = field(default_factory=lambda: int(os.getenv("EMBEDDING_DIM", "1536")))
+    embedding_dim: int = field(default_factory=lambda: int(os.getenv("EMBEDDING_DIM", "1024")))
     batch_size: int = field(default_factory=lambda: int(os.getenv("BATCH_SIZE", "5")))
     retry_attempts: int = field(default_factory=lambda: int(os.getenv("RETRY_ATTEMPTS", "3")))
     retry_delay: int = field(default_factory=lambda: int(os.getenv("RETRY_DELAY", "5")))
