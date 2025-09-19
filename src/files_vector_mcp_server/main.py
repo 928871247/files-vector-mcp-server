@@ -32,6 +32,10 @@ def main():
         # 初始化核心服务（同步方式）
         initialize_services()
 
+        # 初始化任务队列
+        from .utils.task_queue import init_task_queue
+        init_task_queue(maxsize=config.batch_size * 10)
+
         # 启动全局事件循环
         from .utils.events import start_worker_event_loop
         start_worker_event_loop()
@@ -272,7 +276,8 @@ def register_tools(mcp: FastMCP):
             logger.info(f"已创建文件: {file_path}")
 
             # 触发文件处理（添加到任务队列）
-            from .start_file_watcher import task_queue  # 导入任务队列
+            from .utils.task_queue import get_task_queue
+            task_queue = get_task_queue()
             task_queue.put((file_path, "created", None))
 
             return {
@@ -303,10 +308,10 @@ def start_file_watcher():
 
     from .utils.helpers import get_all_watch_directories, is_supported_file_type
 
-    # 创建任务队列（全局可见，供create_markdown使用）
-    global task_queue
-    task_queue = Queue(maxsize=config.batch_size * 10)
-    logger.info(f"任务队列初始化完成，最大容量: {config.batch_size * 10}")
+    # 获取全局任务队列
+    from .utils.task_queue import get_task_queue
+    task_queue = get_task_queue()
+    logger.info(f"任务队列已初始化，当前大小: {task_queue.qsize()}")
 
     class FileChangeHandler(FileSystemEventHandler):
         """文件变化处理器"""
